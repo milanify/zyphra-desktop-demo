@@ -1,48 +1,54 @@
-const { app, BrowserWindow } = require('electron');
+// electron-main.js
+const { app, BrowserWindow, BrowserView } = require('electron');
 const path = require('path');
-const isDev = require('electron-is-dev');
 
 function createWindow() {
+  // Main window
   const mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false, // allows React sidebar to interact
+      nodeIntegration: true,      // allows React sidebar in BrowserView
+      contextIsolation: false,    // keep false for simplicity
     },
   });
 
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173'); // React dev server
-  } else {
-    mainWindow.loadFile(path.join(__dirname, 'dist/index.html')); // production build
-  }
-
-  // Open dev tools in dev mode
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
-
-  // Optional: open Zyphra Chat in a separate BrowserWindow inside Electron
-  const chatWindow = new BrowserWindow({
-    width: 1024,
-    height: 768,
+  // Sidebar as a BrowserView
+  const sidebar = new BrowserView({
     webPreferences: {
-      nodeIntegration: false, // important for security
-      contextIsolation: true,
+      nodeIntegration: true,
+      contextIsolation: false,
     },
   });
-  chatWindow.loadURL('https://playground.zyphra.com/chat');
+
+  mainWindow.setBrowserView(sidebar);
+
+  // Position and size the sidebar (right-hand side)
+  sidebar.setBounds({
+    x: 980,       // main window width (1280) - sidebar width (300)
+    y: 0,
+    width: 300,
+    height: 800,
+  });
+
+  // Load your React app in the sidebar
+  sidebar.webContents.loadURL('http://localhost:5173'); // dev server
+
+  // Load Zyphra Chat in main window
+  mainWindow.loadURL('https://playground.zyphra.com/chat');
+
+  // Optional: open dev tools for debugging
+  // mainWindow.webContents.openDevTools();
+  // sidebar.webContents.openDevTools();
 }
 
-app.whenReady().then(() => {
-  createWindow();
+// App lifecycle
+app.whenReady().then(createWindow);
 
-  app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
