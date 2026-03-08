@@ -15,14 +15,13 @@ function App() {
         zIndex: 9999,
       }}
     >
-      <h2>My Addons Panel</h2>
-      <button
-        onClick={() => alert("Do something!")}
-        style={{ marginTop: "1rem", padding: "0.5rem 1rem" }}
-      >
-        Example Button
+      <h2>Sidebar / Addons</h2>
+      <button onClick={() => alert("Button clicked!")}>
+        Example Action
       </button>
-      <p style={{ marginTop: "1rem" }}>Overlay content goes here.</p>
+      <p style={{ marginTop: "1rem" }}>
+        Your custom React UI goes here.
+      </p>
     </div>
   );
 }
