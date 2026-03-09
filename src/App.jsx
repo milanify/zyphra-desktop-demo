@@ -15,10 +15,14 @@ function App() {
     [],
   );
 
-  // Showcase independently (tabs) or together (multi-select).
   const [mode, setMode] = useState("tabs"); // "tabs" | "multi"
   const [activeTab, setActiveTab] = useState("palette");
   const [enabled, setEnabled] = useState(() => new Set(["palette", "timeline"]));
+
+  const handleReload = () => {
+    // Hard reload of the entire page / sidebar
+    window.location.reload();
+  };
 
   return (
     <div
@@ -36,11 +40,27 @@ function App() {
         overflowX: "hidden",
       }}
     >
+      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>Zyphra Agent Sidebar</h2>
-        <div style={{ fontSize: 12, opacity: 0.8 }}>4 independent demo features</div>
+        <button
+          onClick={handleReload}
+          style={{
+            fontSize: 12,
+            padding: "4px 8px",
+            borderRadius: 999,
+            border: "1px solid #333",
+            background: "#2a203a",
+            color: "white",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Reload
+        </button>
       </div>
 
+      {/* Mode Switch */}
       <div style={{ display: "flex", gap: 8 }}>
         <button
           onClick={() => setMode("tabs")}
@@ -70,6 +90,7 @@ function App() {
         </button>
       </div>
 
+      {/* Panels */}
       {mode === "tabs" ? (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
