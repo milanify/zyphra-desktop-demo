@@ -7,11 +7,11 @@ const pdfParse = require("pdf-parse");
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1600,
+    height: 1000,
   });
 
-  const SIDEBAR_WIDTH = 320;
+  const SIDEBAR_WIDTH = 360;
 
   /** @type {import('electron').BrowserView | null} */
   let siteView = null;
@@ -69,7 +69,7 @@ function createWindow() {
   sidebarView.webContents.loadURL("http://localhost:5173");
 
   // Optional debugging
-   siteView.webContents.openDevTools();
+   // siteView.webContents.openDevTools();
   // sidebarView.webContents.openDevTools();
 
   // -------------------------

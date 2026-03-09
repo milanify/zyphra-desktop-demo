@@ -25,6 +25,7 @@ function App() {
       style={{
         width: "100%",
         height: "100%",
+        boxSizing: "border-box",
         backgroundColor: "#0f0f0f",
         color: "white",
         padding: "1rem",
@@ -32,6 +33,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         gap: 12,
+        overflowX: "hidden",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
