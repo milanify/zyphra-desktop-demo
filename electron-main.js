@@ -1,5 +1,5 @@
 /* eslint-env node */
-/* global __dirname, process, require */
+/* global __dirname, process, require, Buffer */
 const { app, BrowserWindow, BrowserView, ipcMain, dialog } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -87,6 +87,81 @@ function createWindow() {
       // noop (demo app)
     }
   };
+
+  // -------------------------
+  // Network tapping (Zyphra view)
+  // -------------------------
+
+  try {
+    if (!siteView.webContents.debugger.isAttached()) {
+      siteView.webContents.debugger.attach("1.3");
+      siteView.webContents.debugger.sendCommand("Network.enable");
+
+      const responses = new Map();
+
+      siteView.webContents.debugger.on("message", async (_event, method, params) => {
+        try {
+          if (method === "Network.responseReceived") {
+            const { requestId, response } = params;
+            responses.set(requestId, {
+              url: response?.url,
+              status: response?.status,
+              mimeType: response?.mimeType,
+            });
+          }
+
+          if (method === "Network.loadingFinished") {
+            const { requestId } = params;
+            const meta = responses.get(requestId);
+            if (!meta) return;
+
+            // Only care about JSON / text-ish responses.
+            const mt = (meta.mimeType || "").toLowerCase();
+            if (!mt.includes("json") && !mt.startsWith("text/") && !mt.includes("javascript")) {
+              responses.delete(requestId);
+              return;
+            }
+
+            const bodyResult = await siteView.webContents.debugger.sendCommand("Network.getResponseBody", {
+              requestId,
+            });
+
+            let snippet = "";
+            let parsed = null;
+            const raw = bodyResult?.base64Encoded
+              ? Buffer.from(bodyResult.body || "", "base64").toString("utf8")
+              : String(bodyResult.body || "");
+
+            snippet = raw.length > 600 ? `${raw.slice(0, 600)}\n…` : raw;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              parsed = null;
+            }
+
+            const urlObj = new URL(meta.url || "https://placeholder/");
+
+            emitTimeline({
+              kind: "network",
+              source: "zyphra-network",
+              message: `${meta.status} ${urlObj.pathname}${urlObj.search || ""}`,
+              url: meta.url,
+              status: meta.status,
+              mimeType: meta.mimeType,
+              bodySnippet: snippet,
+              bodyJson: parsed,
+            });
+
+            responses.delete(requestId);
+          }
+        } catch {
+          // swallow debugger errors; timeline is best-effort
+        }
+      });
+    }
+  } catch {
+    // If debugger attach fails (e.g., already attached by devtools), skip network tapping.
+  }
 
   const zyphraExec = async (js) => {
     if (!siteView?.webContents) throw new Error("siteView not ready");

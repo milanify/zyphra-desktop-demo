@@ -11,6 +11,16 @@ export default function AgentExecutionTimeline() {
     return items.filter((x) => (x.source || "unknown") === filter);
   }, [timeline, filter]);
 
+  const compactUrl = (full) => {
+    if (!full) return "";
+    try {
+      const u = new URL(full);
+      return `${u.pathname}${u.search || ""}`;
+    } catch {
+      return full;
+    }
+  };
+
   const sources = useMemo(() => {
     const s = new Set(["all"]);
     for (const t of timeline) s.add(t.source || "unknown");
@@ -48,7 +58,7 @@ export default function AgentExecutionTimeline() {
       <div
         style={{
           marginTop: 10,
-          maxHeight: 220,
+          maxHeight: 260,
           overflow: "auto",
           borderTop: "1px solid #222",
           paddingTop: 8,
@@ -68,7 +78,33 @@ export default function AgentExecutionTimeline() {
                     {evt.ts ? new Date(evt.ts).toLocaleTimeString() : ""}
                   </div>
                 </div>
-                {evt.message && <div style={{ marginTop: 4, fontSize: 12 }}>{evt.message}</div>}
+                {evt.kind === "network" ? (
+                  <div style={{ marginTop: 4, fontSize: 12 }}>
+                    <div style={{ opacity: 0.85 }}>{evt.message || compactUrl(evt.url)}</div>
+                    <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>
+                      <b>Status:</b> {evt.status} · <b>MIME:</b> {evt.mimeType}
+                    </div>
+                    {evt.bodySnippet && (
+                      <pre
+                        style={{
+                          marginTop: 6,
+                          fontSize: 11,
+                          whiteSpace: "pre-wrap",
+                          maxHeight: 120,
+                          overflow: "auto",
+                          background: "#101010",
+                          borderRadius: 6,
+                          padding: 6,
+                          border: "1px solid #222",
+                        }}
+                      >
+                        {evt.bodySnippet}
+                      </pre>
+                    )}
+                  </div>
+                ) : (
+                  evt.message && <div style={{ marginTop: 4, fontSize: 12 }}>{evt.message}</div>
+                )}
               </li>
             ))}
           </ul>
