@@ -109,8 +109,28 @@ export default function AgentCommandPalette() {
         disabledReason: ensure("Zyphra injection"),
         run: async () =>
           await runSafely(async () => {
+            const sel = await openFile({
+              filters: [
+                { name: "UI description", extensions: ["txt", "md"] },
+                { name: "All files", extensions: ["*"] },
+              ],
+            });
+            if (sel?.canceled) return;
+            const fp = sel?.path;
+            setStatus("Reading UI description…");
+            const res = await readFile({ path: fp });
+            const description = clamp(res?.text || "", 8000);
+            const filename = fp?.split(/[\\/]/).pop() || "description.txt";
+
             const prompt =
-              "Generate a React component for the UI described below.\n\nConstraints:\n- Use React + Tailwind\n- Accessible (labels, focus states)\n- Provide a single component + an example usage snippet\n- Return only code\n\nUI:\nA dashboard card showing key metrics (title, value, delta badge, small sparkline placeholder).\n";
+              `Generate a React component for the UI described in ${filename}.\n\nConstraints:\n` +
+              `- Use React + Tailwind\n` +
+              `- Accessible (labels, focus states)\n` +
+              `- Provide a single component + an example usage snippet\n` +
+              `- Return only code\n\n` +
+              `UI DESCRIPTION:\n${description}\n`;
+
+            setStatus("Injecting component prompt to Zyphra…");
             await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
@@ -129,8 +149,13 @@ export default function AgentCommandPalette() {
             setStatus("Reading notes…");
             const res = await readFile({ path: fp });
             const content = clamp(res?.text || "", 25000);
-            const prompt =
-              `Extract TODOs from these notes.\n\nReturn:\nTODO\n• item\n• item\n\nNOTES:\n${content}\n`;
+            const prompt = `You are helping turn messy meeting notes into a simple action list.\n\n` +
+              `From the notes below, extract only clear, concrete action items as bullet points.\n` +
+              `Keep the format very simple:\n` +
+              `- one bullet per action\n` +
+              `- include owner and/or rough timing only if they are explicitly mentioned\n` +
+              `- do NOT include background, commentary, or non-actionable observations\n\n` +
+              `Meeting notes:\n${content}\n`;
             await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
