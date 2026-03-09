@@ -126,11 +126,19 @@ function createWindow() {
               requestId,
             });
 
+            const sanitize = (str) => {
+              if (!str) return "";
+              // Redact obvious JWT-like blobs for readability / safety.
+              return str.replace(/"jwt":"[^"]+"/g, '"jwt":"***redacted***"');
+            };
+
             let snippet = "";
             let parsed = null;
-            const raw = bodyResult?.base64Encoded
+            const rawDecoded = bodyResult?.base64Encoded
               ? Buffer.from(bodyResult.body || "", "base64").toString("utf8")
               : String(bodyResult.body || "");
+
+            const raw = sanitize(rawDecoded);
 
             snippet = raw.length > 600 ? `${raw.slice(0, 600)}\n…` : raw;
             try {

@@ -1,6 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getElectronAPI } from "./electronBridge";
 
+// Simple shared timeline store so events persist even when hooks unmount/remount.
+let globalTimeline = [];
+const timelineSubscribers = new Set();
+let ipcTimelineBound = false;
+
+const pushTimelineEvent = (evt) => {
+  globalTimeline = [evt, ...globalTimeline].slice(0, 500);
+  for (const fn of timelineSubscribers) {
+    try {
+      fn(globalTimeline);
+    } catch {
+      // ignore subscriber errors
+    }
+  }
+};
+
 export function estimateTokens(text) {
   // Rough demo heuristic: ~4 chars/token for English-like text.
   const s = String(text || "");
@@ -9,14 +25,26 @@ export function estimateTokens(text) {
 
 export function useZyphraBridge({ source }) {
   const api = useMemo(() => getElectronAPI(), []);
-  const [timeline, setTimeline] = useState([]);
+  const [timeline, setTimeline] = useState(globalTimeline);
 
+  // Keep local state in sync with shared store.
+  useEffect(() => {
+    timelineSubscribers.add(setTimeline);
+    // Ensure we start with the latest snapshot.
+    setTimeline(globalTimeline);
+    return () => {
+      timelineSubscribers.delete(setTimeline);
+    };
+  }, []);
+
+  // Bind IPC listener once for the entire app lifetime.
   useEffect(() => {
     if (!api?.agent?.onTimeline) return;
-    const unsub = api.agent.onTimeline((evt) => {
-      setTimeline((prev) => [evt, ...prev].slice(0, 200));
+    if (ipcTimelineBound) return;
+    api.agent.onTimeline((evt) => {
+      pushTimelineEvent(evt);
     });
-    return unsub;
+    ipcTimelineBound = true;
   }, [api]);
 
   const setDraft = useCallback(
@@ -73,6 +101,16 @@ export function useZyphraBridge({ source }) {
     openFile,
     readFile,
     readPdfText,
+    clearTimeline: () => {
+      globalTimeline = [];
+      for (const fn of timelineSubscribers) {
+        try {
+          fn(globalTimeline);
+        } catch {
+          // ignore
+        }
+      }
+    },
   };
 }
 

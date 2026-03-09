@@ -2,14 +2,8 @@ import React, { useMemo, useState } from "react";
 import { useZyphraBridge } from "../ipc/useZyphraBridge";
 
 export default function AgentExecutionTimeline() {
-  const { timeline } = useZyphraBridge({ source: "timeline" });
+  const { timeline, clearTimeline } = useZyphraBridge({ source: "timeline" });
   const [filter, setFilter] = useState("all");
-
-  const rows = useMemo(() => {
-    const items = timeline.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
-    if (filter === "all") return items;
-    return items.filter((x) => (x.source || "unknown") === filter);
-  }, [timeline, filter]);
 
   const compactUrl = (full) => {
     if (!full) return "";
@@ -24,14 +18,69 @@ export default function AgentExecutionTimeline() {
   const sources = useMemo(() => {
     const s = new Set(["all"]);
     for (const t of timeline) s.add(t.source || "unknown");
+    // extra virtual filters
+    s.add("network:chat");
+    s.add("network:auth");
+    s.add("network:firestore");
+    s.add("non-network");
     return Array.from(s);
   }, [timeline]);
 
+  const rows = useMemo(() => {
+    const items = timeline.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    if (filter === "all") return items;
+
+    if (filter === "network:chat") {
+      return items.filter((x) => x.kind === "network" && (x.url || "").includes("/api/chat"));
+    }
+    if (filter === "network:auth") {
+      return items.filter(
+        (x) =>
+          x.kind === "network" &&
+          ((x.url || "").includes("/v1/client/sessions") || (x.url || "").includes("touch?__clerk_api_version")),
+      );
+    }
+    if (filter === "network:firestore") {
+      return items.filter((x) => x.kind === "network" && (x.url || "").includes("google.firestore.v1.Firestore"));
+    }
+    if (filter === "non-network") {
+      return items.filter((x) => x.kind !== "network");
+    }
+
+    // default: by source label
+    return items.filter((x) => (x.source || "unknown") === filter);
+  }, [timeline, filter]);
+
+  const statusColor = (status) => {
+    if (!status && status !== 0) return "#cccccc";
+    if (status >= 200 && status < 300) return "#4ade80"; // green
+    if (status >= 400 && status < 500) return "#fbbf24"; // amber
+    if (status >= 500) return "#f97373"; // red-ish
+    return "#a5b4fc"; // blue-ish default
+  };
+
   return (
     <div style={{ border: "1px solid #222", background: "#141414", padding: 10 }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <div style={{ fontWeight: 700 }}>Agent Execution Timeline</div>
-        <div style={{ fontSize: 11, opacity: 0.8 }}>{rows.length} events</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700 }}>Agent Execution Timeline</div>
+          <div style={{ fontSize: 11, opacity: 0.8 }}>{rows.length} events (total {timeline.length})</div>
+        </div>
+        <button
+          onClick={clearTimeline}
+          style={{
+            fontSize: 11,
+            padding: "4px 8px",
+            borderRadius: 999,
+            border: "1px solid #333",
+            background: "#111827",
+            color: "#e5e7eb",
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Clear
+        </button>
       </div>
 
       <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
@@ -58,8 +107,8 @@ export default function AgentExecutionTimeline() {
       <div
         style={{
           marginTop: 10,
-          maxHeight: 260,
-          overflow: "auto",
+          // Let this panel grow naturally; outer sidebar will scroll if needed.
+          overflowY: "auto",
           borderTop: "1px solid #222",
           paddingTop: 8,
         }}
@@ -80,9 +129,35 @@ export default function AgentExecutionTimeline() {
                 </div>
                 {evt.kind === "network" ? (
                   <div style={{ marginTop: 4, fontSize: 12 }}>
-                    <div style={{ opacity: 0.85 }}>{evt.message || compactUrl(evt.url)}</div>
-                    <div style={{ marginTop: 4, fontSize: 11, opacity: 0.75 }}>
-                      <b>Status:</b> {evt.status} · <b>MIME:</b> {evt.mimeType}
+                    <div style={{ opacity: 0.9 }}>
+                      {evt.message || compactUrl(evt.url)}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 11, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: 999,
+                          border: "1px solid #333",
+                          background: "#0b0f0b",
+                          color: statusColor(evt.status),
+                        }}
+                      >
+                        <b>{evt.status}</b>
+                      </span>
+                      <span
+                        style={{
+                          padding: "2px 6px",
+                          borderRadius: 999,
+                          border: "1px solid #333",
+                          background: "#111827",
+                          color: "#e5e7eb",
+                        }}
+                      >
+                        {evt.mimeType}
+                      </span>
+                      {evt.url && (
+                        <span style={{ fontSize: 11, opacity: 0.7 }}>{compactUrl(evt.url)}</span>
+                      )}
                     </div>
                     {evt.bodySnippet && (
                       <pre
