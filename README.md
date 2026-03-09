@@ -4,7 +4,7 @@
 
 This repo is a proof of concept of a Zyphra desktop application, with 4 major features showcased. It uses React.js and Electron.js.
 
-[Link to demo video](https://drive.google.com/file/d/1kleCHs4mkA1S8HuRbDH_avmvCDc2y9k7/view?usp=sharing)
+[Watch the demo video](https://drive.google.com/file/d/1kleCHs4mkA1S8HuRbDH_avmvCDc2y9k7/view?usp=sharing)
 
 [View the Zyphra Desktop Demo PDF Overview](./zyphra-desktop-demo.pdf)
 
@@ -12,9 +12,9 @@ This repo is a proof of concept of a Zyphra desktop application, with 4 major fe
 
 1. Initialized repo with React
 
-2. Initialized basic Tauri framework application, for performance
+2. Initialized basic Tauri application, since it's a perfomant desktop framework that uses Rust
 
-3. Tauri was having issues so shifted to Electron desktop framework for speed of development
+3. Tauri was having issues, shifted to Electron desktop framework for speed of development since it uses JavaScript
 
 4. Create initial sidebar overlayed on the main web browser
 
