@@ -23,6 +23,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      devTools: true,
     },
   });
 
@@ -32,6 +33,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "electron-preload.js"),
+      devTools: true,
     },
   });
 
@@ -67,7 +69,7 @@ function createWindow() {
   sidebarView.webContents.loadURL("http://localhost:5173");
 
   // Optional debugging
-  // siteView.webContents.openDevTools();
+   siteView.webContents.openDevTools();
   // sidebarView.webContents.openDevTools();
 
   // -------------------------
