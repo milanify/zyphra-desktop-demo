@@ -111,10 +111,20 @@ function createWindow() {
 
       const prev = ta.value ?? '';
       const next = ${JSON.stringify(safeMode)} === 'append' ? (prev + ${JSON.stringify(safeText)}) : ${JSON.stringify(safeText)};
+
+      // IMPORTANT: Use the native value setter so React-controlled inputs update correctly.
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
       ta.focus();
-      ta.value = next;
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-      ta.dispatchEvent(new Event('change', { bubbles: true }));
+      if (nativeSetter) nativeSetter.call(ta, next);
+      else ta.value = next;
+
+      // Dispatch an InputEvent so frameworks (React) register the change.
+      const ev = (typeof InputEvent !== 'undefined')
+        ? new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ' ' })
+        : new Event('input', { bubbles: true, cancelable: true });
+      ta.dispatchEvent(ev);
+      ta.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+
       return { ok: true, length: next.length };
     })()`);
   };
@@ -134,7 +144,12 @@ function createWindow() {
         textareas[0];
       if (!ta) return { ok: false, error: 'No <textarea> found' };
 
-      const candidates = Array.from(document.querySelectorAll('button'));
+      // Prefer a send button near the textarea (same parent container), then global fallbacks.
+      const localRoot = ta.parentElement || document;
+      const candidates = [
+        ...Array.from(localRoot.querySelectorAll('button')),
+        ...Array.from(document.querySelectorAll('button')),
+      ];
       const btn =
         candidates.find(b => isVisible(b) && !!b.querySelector('img[alt="Send"]')) ||
         candidates.find(b => isVisible(b) && !!b.querySelector('img[src*="send.svg"]')) ||
@@ -143,8 +158,13 @@ function createWindow() {
         candidates.find(b => isVisible(b));
 
       if (btn) {
-        btn.click();
-        return { ok: true, via: 'button' };
+        const fire = (type) => btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+        fire('pointerdown');
+        fire('mousedown');
+        fire('pointerup');
+        fire('mouseup');
+        fire('click');
+        return { ok: true, via: 'button', details: { hasSendImg: !!btn.querySelector('img[alt="Send"], img[src*="send.svg"]') } };
       }
 
       // Fallback: Enter key.
