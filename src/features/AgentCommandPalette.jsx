@@ -18,9 +18,12 @@ const baseStyles = {
 };
 
 export default function AgentCommandPalette() {
-  const { available, setDraft, submit } = useZyphraBridge({ source: "commandPalette" });
+  const { available, openFile, readFile, readPdfText, setDraft, submit } = useZyphraBridge({
+    source: "commandPalette",
+  });
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  const [status, setStatus] = useState("");
 
   useEffect(() => {
     const handler = (e) => {
@@ -34,49 +37,173 @@ export default function AgentCommandPalette() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const commands = useMemo(
-    () => [
+  const clamp = (s, maxChars) => {
+    const str = String(s || "");
+    if (str.length <= maxChars) return str;
+    return `${str.slice(0, maxChars)}\n\n[Truncated: ${str.length - maxChars} chars omitted]`;
+  };
+
+  const runSafely = async (fn) => {
+    setStatus("");
+    try {
+      await fn();
+      setStatus("Done.");
+    } catch (e) {
+      setStatus(`Error: ${String(e?.message || e)}`);
+    }
+  };
+
+  const commands = useMemo(() => {
+    const ensure = (needed) => (available ? undefined : `Requires Electron bridge (${needed}).`);
+
+    return [
+      // Tier 1
       {
-        id: "summarize",
-        title: "Summarize (paste request)",
-        subtitle: "Insert a good summarization prompt",
-        run: async () => {
-          const prompt =
-            "Summarize the content above. Output:\n- 5 bullet key points\n- 3 follow-up questions\n- One-liner takeaway\n";
-          await setDraft({ text: prompt, mode: "replace" });
-        },
+        id: "summarizePdf",
+        title: "Summarize PDF",
+        subtitle: "> summarize pdf",
+        disabledReason: ensure("file picker + pdf text extraction"),
+        run: async () =>
+          await runSafely(async () => {
+            const sel = await openFile({
+              filters: [{ name: "PDF", extensions: ["pdf"] }],
+            });
+            if (sel?.canceled) return;
+            const fp = sel?.path;
+            setStatus("Extracting PDF text…");
+            const res = await readPdfText({ path: fp });
+            const extracted = clamp(res?.text || "", 25000);
+            const prompt = `Summarize this PDF.\n\nOutput:\n- key ideas\n- action items\n- important numbers\n\nPDF TEXT:\n${extracted}\n`;
+            setStatus("Injecting prompt to Zyphra…");
+            await setDraft({ text: prompt, mode: "replace" });
+            await submit();
+          }),
       },
       {
-        id: "extractTodos",
-        title: "Extract action items",
-        subtitle: "Insert a TODO extraction prompt",
-        run: async () => {
-          const prompt =
-            "Extract action items from the content above.\nReturn JSON: { todos: [{title, owner?, due?, priority?}], risks: [], open_questions: [] }\n";
-          await setDraft({ text: prompt, mode: "replace" });
-        },
+        id: "explainFile",
+        title: "Explain This File",
+        subtitle: "> explain file",
+        disabledReason: ensure("file picker + file read"),
+        run: async () =>
+          await runSafely(async () => {
+            const sel = await openFile({
+              filters: [
+                { name: "Text", extensions: ["txt", "md", "js", "jsx", "ts", "tsx", "py", "go", "rs", "java", "json", "yaml", "yml"] },
+                { name: "All files", extensions: ["*"] },
+              ],
+            });
+            if (sel?.canceled) return;
+            const fp = sel?.path;
+            setStatus("Reading file…");
+            const res = await readFile({ path: fp });
+            const content = clamp(res?.text || "", 25000);
+            const filename = fp?.split(/[\\/]/).pop() || "file";
+            const prompt = `Explain this file: ${filename}\n\nReturn:\n- Purpose\n- Key functions/classes\n- Dependencies\n- How it works\n\nFILE CONTENT:\n${content}\n`;
+            setStatus("Injecting prompt to Zyphra…");
+            await setDraft({ text: prompt, mode: "replace" });
+            await submit();
+          }),
       },
       {
         id: "generateComponent",
-        title: "Generate React component",
-        subtitle: "Insert a component generation prompt",
-        run: async () => {
-          const prompt =
-            "Generate a React component for the described UI.\nRequirements:\n- accessible\n- minimal dependencies\n- include usage example\nReturn only code.\n";
-          await setDraft({ text: prompt, mode: "replace" });
-        },
+        title: "Generate UI Component",
+        subtitle: "> generate component",
+        disabledReason: ensure("Zyphra injection"),
+        run: async () =>
+          await runSafely(async () => {
+            const prompt =
+              "Generate a React component for the UI described below.\n\nConstraints:\n- Use React + Tailwind\n- Accessible (labels, focus states)\n- Provide a single component + an example usage snippet\n- Return only code\n\nUI:\nA dashboard card showing key metrics (title, value, delta badge, small sparkline placeholder).\n";
+            await setDraft({ text: prompt, mode: "replace" });
+            await submit();
+          }),
       },
       {
-        id: "submit",
-        title: "Submit current draft to Zyphra",
-        subtitle: "Click the Zyphra send button",
-        run: async () => {
-          await submit();
-        },
+        id: "extractTodos",
+        title: "Extract Todos From Notes",
+        subtitle: "> extract todos",
+        disabledReason: ensure("file picker + file read"),
+        run: async () =>
+          await runSafely(async () => {
+            const sel = await openFile({
+              filters: [{ name: "Text", extensions: ["txt", "md"] }],
+            });
+            if (sel?.canceled) return;
+            const fp = sel?.path;
+            setStatus("Reading notes…");
+            const res = await readFile({ path: fp });
+            const content = clamp(res?.text || "", 25000);
+            const prompt =
+              `Extract TODOs from these notes.\n\nReturn:\nTODO\n• item\n• item\n\nNOTES:\n${content}\n`;
+            await setDraft({ text: prompt, mode: "replace" });
+            await submit();
+          }),
       },
-    ],
-    [setDraft, submit],
-  );
+      // Tier 2/3 placeholders (wired later)
+      {
+        id: "analyzeRepo",
+        title: "Analyze Repository",
+        subtitle: "> analyze repository (coming next)",
+        disabledReason: "Next: add folder picker + recursive file scan.",
+        run: async () => {},
+      },
+      {
+        id: "searchFiles",
+        title: "Search My Files",
+        subtitle: "> search files (coming next)",
+        disabledReason: "Next: add folder picker + search.",
+        run: async () => {},
+      },
+      {
+        id: "compareFiles",
+        title: "Compare Two Files",
+        subtitle: "> compare files (coming next)",
+        disabledReason: "Next: add 2-file picker + diff prompt builder.",
+        run: async () => {},
+      },
+      {
+        id: "draftEmail",
+        title: "Turn Notes Into Email",
+        subtitle: "> draft email (coming next)",
+        disabledReason: "Next: add notes file picker + email template prompt.",
+        run: async () => {},
+      },
+      {
+        id: "convertFile",
+        title: "Convert File",
+        subtitle: "> convert file (coming next)",
+        disabledReason: "Next: add conversion target selection.",
+        run: async () => {},
+      },
+      {
+        id: "generateDiagram",
+        title: "Generate Diagram",
+        subtitle: "> generate diagram (coming next)",
+        disabledReason: "Next: add diagram prompt builder.",
+        run: async () => {},
+      },
+      {
+        id: "reviewCode",
+        title: "Find Bugs (Review Code)",
+        subtitle: "> review code (coming next)",
+        disabledReason: "Next: add file picker + review prompt builder.",
+        run: async () => {},
+      },
+      {
+        id: "generateTests",
+        title: "Write Tests",
+        subtitle: "> generate tests (coming next)",
+        disabledReason: "Next: add file picker + test prompt builder.",
+        run: async () => {},
+      },
+      {
+        id: "refactorFile",
+        title: "Refactor File",
+        subtitle: "> refactor file (coming next)",
+        disabledReason: "Next: add file picker + refactor goals prompt builder.",
+        run: async () => {},
+      },
+    ];
+  }, [available, openFile, readFile, readPdfText, setDraft, submit]);
 
   return (
     <div style={baseStyles.container}>
@@ -91,18 +218,22 @@ export default function AgentCommandPalette() {
       <div style={{ marginTop: 10 }}>
         <button
           onClick={() => setOpen(true)}
-          disabled={!available}
+          disabled={false}
           style={{
             width: "100%",
             padding: "8px 10px",
             background: "#1f1f1f",
             border: "1px solid #333",
             color: "white",
-            cursor: available ? "pointer" : "not-allowed",
+            cursor: "pointer",
           }}
         >
           Open Palette
         </button>
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85 }}>
+        <b>Bridge:</b> {available ? "connected" : "not detected"} {status ? `· ${status}` : ""}
       </div>
 
       {open && (
@@ -150,6 +281,7 @@ export default function AgentCommandPalette() {
                     key={c.id}
                     value={`${c.title} ${c.subtitle}`}
                     onSelect={async () => {
+                      if (c.disabledReason) return;
                       setOpen(false);
                       setValue("");
                       await c.run();
@@ -157,11 +289,15 @@ export default function AgentCommandPalette() {
                     style={{
                       padding: "10px 12px",
                       borderRadius: 8,
-                      cursor: "pointer",
+                      cursor: c.disabledReason ? "not-allowed" : "pointer",
+                      opacity: c.disabledReason ? 0.5 : 1,
                     }}
                   >
                     <div style={{ fontWeight: 650 }}>{c.title}</div>
                     <div style={{ fontSize: 12, opacity: 0.75 }}>{c.subtitle}</div>
+                    {c.disabledReason && (
+                      <div style={{ fontSize: 11, opacity: 0.75, marginTop: 4 }}>{c.disabledReason}</div>
+                    )}
                   </Command.Item>
                 ))}
               </Command.List>

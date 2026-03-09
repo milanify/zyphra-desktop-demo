@@ -3,6 +3,7 @@
 const { app, BrowserWindow, BrowserView, ipcMain, dialog } = require("electron");
 const fs = require("node:fs/promises");
 const path = require("node:path");
+const pdfParse = require("pdf-parse");
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -101,7 +102,11 @@ function createWindow() {
         return r.width > 0 && r.height > 0;
       };
       const textareas = Array.from(document.querySelectorAll('textarea'));
-      const ta = textareas.find(isVisible) || textareas[0];
+      const ta =
+        document.querySelector('textarea[placeholder*="Ask"]') ||
+        textareas.find(t => (t.getAttribute('placeholder') || '').toLowerCase().includes('ask')) ||
+        textareas.find(isVisible) ||
+        textareas[0];
       if (!ta) return { ok: false, error: 'No <textarea> found' };
 
       const prev = ta.value ?? '';
@@ -122,13 +127,17 @@ function createWindow() {
         return r.width > 0 && r.height > 0;
       };
       const textareas = Array.from(document.querySelectorAll('textarea'));
-      const ta = textareas.find(isVisible) || textareas[0];
+      const ta =
+        document.querySelector('textarea[placeholder*="Ask"]') ||
+        textareas.find(t => (t.getAttribute('placeholder') || '').toLowerCase().includes('ask')) ||
+        textareas.find(isVisible) ||
+        textareas[0];
       if (!ta) return { ok: false, error: 'No <textarea> found' };
 
-      // Prefer a submit button in the same form/container.
-      const root = ta.closest('form') || ta.parentElement;
-      const candidates = Array.from((root || document).querySelectorAll('button'));
+      const candidates = Array.from(document.querySelectorAll('button'));
       const btn =
+        candidates.find(b => isVisible(b) && !!b.querySelector('img[alt="Send"]')) ||
+        candidates.find(b => isVisible(b) && !!b.querySelector('img[src*="send.svg"]')) ||
         candidates.find(b => isVisible(b) && (b.type === 'submit')) ||
         candidates.find(b => isVisible(b) && /send|submit|run|go/i.test((b.textContent || '').trim())) ||
         candidates.find(b => isVisible(b));
@@ -172,6 +181,15 @@ function createWindow() {
     // Best-effort text decode; for demo, we keep it simple.
     const text = buf.toString("utf8");
     return { path: filePath, text };
+  });
+
+  ipcMain.handle("fs:readPdfText", async (_evt, args) => {
+    const filePath = String(args?.path || "");
+    emitTimeline({ kind: "step", source: args?.source || "unknown", message: `Reading PDF: ${path.basename(filePath)}` });
+    const buf = await fs.readFile(filePath);
+    emitTimeline({ kind: "step", source: args?.source || "unknown", message: "Extracting PDF text…" });
+    const data = await pdfParse(buf);
+    return { path: filePath, text: data?.text || "" };
   });
 }
 

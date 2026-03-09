@@ -48,6 +48,14 @@ export function useZyphraBridge({ source }) {
     [api, source],
   );
 
+  const readPdfText = useCallback(
+    async ({ path }) => {
+      if (!api?.fs?.readPdfText) throw new Error("electronAPI not available");
+      return await api.fs.readPdfText({ path, source });
+    },
+    [api, source],
+  );
+
   return {
     available: !!api,
     timeline,
@@ -55,6 +63,7 @@ export function useZyphraBridge({ source }) {
     submit,
     openFile,
     readFile,
+    readPdfText,
   };
 }
 

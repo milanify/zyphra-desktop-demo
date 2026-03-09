@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
   fs: {
     readFile: (args) => ipcRenderer.invoke("fs:readFile", args),
+    readPdfText: (args) => ipcRenderer.invoke("fs:readPdfText", args),
   },
   agent: {
     onTimeline: (cb) => {
