@@ -1,17 +1,24 @@
-import React, { useState } from "react";
-import Palette from "./Palette";
+import React, { useMemo, useState } from "react";
+import AgentCommandPalette from "./features/AgentCommandPalette";
+import AgentExecutionTimeline from "./features/AgentExecutionTimeline";
+import AIWorkspace from "./features/AIWorkspace";
+import ContextGraph from "./features/ContextGraph";
 
 function App() {
-  // CENTRALIZED AGENT STATE
+  const panels = useMemo(
+    () => [
+      { id: "palette", title: "1) Command Palette", component: <AgentCommandPalette /> },
+      { id: "timeline", title: "2) Execution Timeline", component: <AgentExecutionTimeline /> },
+      { id: "workspace", title: "3) AI Workspace", component: <AIWorkspace /> },
+      { id: "context", title: "4) Context Graph", component: <ContextGraph /> },
+    ],
+    [],
+  );
 
-  const [agentState, setAgentState] = useState({
-    status: "idle",
-    currentTask: null,
-    steps: [],
-    result: null,
-  });
-
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  // Showcase independently (tabs) or together (multi-select).
+  const [mode, setMode] = useState("tabs"); // "tabs" | "multi"
+  const [activeTab, setActiveTab] = useState("palette");
+  const [enabled, setEnabled] = useState(() => new Set(["palette", "timeline"]));
 
   return (
     <div
@@ -24,86 +31,113 @@ function App() {
         fontFamily: "system-ui",
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
+        gap: 12,
       }}
     >
-      <h2>Agent Control</h2>
-
-      <button
-        onClick={() => setPaletteOpen(true)}
-        style={{
-          padding: "8px 12px",
-          background: "#1f1f1f",
-          border: "1px solid #333",
-          color: "white",
-          cursor: "pointer",
-        }}
-      >
-        Open Command Palette (⌘K)
-      </button>
-
-      {/* AGENT STATUS */}
-
-      <div
-        style={{
-          padding: "10px",
-          background: "#141414",
-          border: "1px solid #222",
-        }}
-      >
-        <b>Status:</b> {agentState.status}
-
-        {agentState.currentTask && (
-          <div>
-            <b>Task:</b> {agentState.currentTask}
-          </div>
-        )}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>Zyphra Agent Sidebar</h2>
+        <div style={{ fontSize: 12, opacity: 0.8 }}>4 independent demo features</div>
       </div>
 
-      {/* EXECUTION STEPS */}
-
-      {agentState.steps.length > 0 && (
-        <div
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={() => setMode("tabs")}
           style={{
-            background: "#141414",
-            padding: "10px",
-            border: "1px solid #222",
+            flex: 1,
+            padding: "8px 10px",
+            background: mode === "tabs" ? "#2a203a" : "#1f1f1f",
+            border: "1px solid #333",
+            color: "white",
+            cursor: "pointer",
           }}
         >
-          <b>Agent Actions</b>
+          Tab mode
+        </button>
+        <button
+          onClick={() => setMode("multi")}
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: mode === "multi" ? "#2a203a" : "#1f1f1f",
+            border: "1px solid #333",
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          Multi mode
+        </button>
+      </div>
 
-          <ul style={{ marginTop: "10px" }}>
-            {agentState.steps.map((step, i) => (
-              <li key={i}>✓ {step}</li>
+      {mode === "tabs" ? (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {panels.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setActiveTab(p.id)}
+                style={{
+                  textAlign: "left",
+                  padding: "8px 10px",
+                  background: activeTab === p.id ? "#1a1a1a" : "#121212",
+                  border: "1px solid #222",
+                  color: "white",
+                  cursor: "pointer",
+                }}
+              >
+                {p.title}
+              </button>
             ))}
-          </ul>
-        </div>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            {panels.find((p) => p.id === activeTab)?.component}
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {panels.map((p) => {
+              const on = enabled.has(p.id);
+              return (
+                <label
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 10px",
+                    border: "1px solid #222",
+                    background: "#121212",
+                    cursor: "pointer",
+                    fontSize: 12,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) => {
+                      setEnabled((prev) => {
+                        const next = new Set(prev);
+                        if (e.target.checked) next.add(p.id);
+                        else next.delete(p.id);
+                        return next;
+                      });
+                    }}
+                  />
+                  <b>{p.title}</b>
+                </label>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+            {panels
+              .filter((p) => enabled.has(p.id))
+              .map((p) => (
+                <div key={p.id}>{p.component}</div>
+              ))}
+          </div>
+        </>
       )}
-
-      {/* RESULT */}
-
-      {agentState.result && (
-        <div
-          style={{
-            background: "#141414",
-            padding: "10px",
-            border: "1px solid #222",
-          }}
-        >
-          <b>Output</b>
-
-          <pre style={{ marginTop: "10px", whiteSpace: "pre-wrap" }}>
-            {agentState.result}
-          </pre>
-        </div>
-      )}
-
-      <Palette
-        open={paletteOpen}
-        setOpen={setPaletteOpen}
-        agentState={agentState}
-        setAgentState={setAgentState}
-      />
     </div>
   );
 }
