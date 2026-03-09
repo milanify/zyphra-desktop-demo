@@ -1,16 +1,31 @@
-# React + Vite
+# Zyphra Desktop AI Agent Demo
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Intro
 
-Currently, two official plugins are available:
+This repo is a proof of concept of a Zyphra desktop application, with 4 major features showcased. It uses React.js and Electron.js.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+[Link to demo video](https://drive.google.com/file/d/1kleCHs4mkA1S8HuRbDH_avmvCDc2y9k7/view?usp=sharing)
 
-## React Compiler
+[View the Zyphra Desktop Demo PDF Overview](./zyphra-desktop-demo.pdf)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development Overview (Took roughly 6 hours, using Cursor)
 
-## Expanding the ESLint configuration
+1. Initialized repo with React
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+2. Initialized basic Tauri framework application, for performance
+
+3. Tauri was having issues so shifted to Electron desktop framework for speed of development
+
+4. Create initial sidebar overlayed on the main web browser
+
+5. Separated main web browser (left panel) and sidebar (right panel)
+
+6. Added the 4 feature skeletons
+
+7. Iterated on each feature individually, fixed any bugs
+
+8. Wrote the PDF doc overview, recorded a demo video, created README
+
+## Conclusion
+
+Thanks for the taking the time to look at this!
