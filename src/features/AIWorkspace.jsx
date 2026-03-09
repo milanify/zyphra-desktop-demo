@@ -217,7 +217,7 @@ export default function AIWorkspace() {
           <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 4 }}>
             <b>Files</b>
           </div>
-          <div
+          {/*<div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -233,6 +233,7 @@ export default function AIWorkspace() {
           >
             Drag files here
           </div>
+          */}
           <button
             onClick={pickFile}
             disabled={!available}
