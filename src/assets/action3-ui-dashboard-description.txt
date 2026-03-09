@@ -1,0 +1,26 @@
+Dashboard Card UI Specification:
+
+Component Requirements:
+- Title: "Active Users"
+- Main Value: "1,024"
+- Delta badge: "+12% from last week"
+- Mini sparkline chart placeholder (showing last 7 days trend)
+- Responsive design with Tailwind CSS
+- Accessibility: all interactive elements must have ARIA labels and focus states
+- Include hover/focus feedback and subtle animations for the badge
+- Provide a single reusable React component and example usage snippet
+- Follow best practices for code structure and readability
+
+Additional Notes:
+- The card should visually separate the title, value, delta badge, and sparkline.
+- The sparkline placeholder can be a simple div styled to show trend bars.
+- Ensure text colors meet WCAG contrast standards.
+- The delta badge should change color based on positive (green) or negative (red) values.
+- Include props for title, value, delta, and sparklineData so the component is reusable.
+- Optional: allow theme switching (light/dark) for demonstration purposes.
+
+Example content to display:
+- Title: "Active Users"
+- Value: "1,024"
+- Delta: "+12%"
+- Sparkline Data: [1000, 1020, 1015, 1030, 1040, 1025, 1024]
