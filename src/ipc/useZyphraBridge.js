@@ -32,6 +32,14 @@ export function useZyphraBridge({ source }) {
     return await api.zyphra.submit({ source });
   }, [api, source]);
 
+  const send = useCallback(
+    async ({ text, mode = "replace", timeoutMs }) => {
+      if (!api?.zyphra?.send) throw new Error("electronAPI not available");
+      return await api.zyphra.send({ source, text, mode, timeoutMs });
+    },
+    [api, source],
+  );
+
   const openFile = useCallback(
     async ({ filters } = {}) => {
       if (!api?.dialog?.openFile) throw new Error("electronAPI not available");
@@ -60,6 +68,7 @@ export function useZyphraBridge({ source }) {
     available: !!api,
     timeline,
     setDraft,
+    send,
     submit,
     openFile,
     readFile,

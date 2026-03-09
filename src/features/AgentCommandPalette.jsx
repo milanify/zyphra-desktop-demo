@@ -18,7 +18,7 @@ const baseStyles = {
 };
 
 export default function AgentCommandPalette() {
-  const { available, openFile, readFile, readPdfText, setDraft, submit } = useZyphraBridge({
+  const { available, openFile, readFile, readPdfText, send } = useZyphraBridge({
     source: "commandPalette",
   });
   const [open, setOpen] = useState(false);
@@ -75,8 +75,7 @@ export default function AgentCommandPalette() {
             const extracted = clamp(res?.text || "", 25000);
             const prompt = `Summarize this PDF.\n\nOutput:\n- key ideas\n- action items\n- important numbers\n\nPDF TEXT:\n${extracted}\n`;
             setStatus("Injecting prompt to Zyphra…");
-            await setDraft({ text: prompt, mode: "replace" });
-            await submit();
+            await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
       {
@@ -100,8 +99,7 @@ export default function AgentCommandPalette() {
             const filename = fp?.split(/[\\/]/).pop() || "file";
             const prompt = `Explain this file: ${filename}\n\nReturn:\n- Purpose\n- Key functions/classes\n- Dependencies\n- How it works\n\nFILE CONTENT:\n${content}\n`;
             setStatus("Injecting prompt to Zyphra…");
-            await setDraft({ text: prompt, mode: "replace" });
-            await submit();
+            await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
       {
@@ -113,8 +111,7 @@ export default function AgentCommandPalette() {
           await runSafely(async () => {
             const prompt =
               "Generate a React component for the UI described below.\n\nConstraints:\n- Use React + Tailwind\n- Accessible (labels, focus states)\n- Provide a single component + an example usage snippet\n- Return only code\n\nUI:\nA dashboard card showing key metrics (title, value, delta badge, small sparkline placeholder).\n";
-            await setDraft({ text: prompt, mode: "replace" });
-            await submit();
+            await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
       {
@@ -134,8 +131,7 @@ export default function AgentCommandPalette() {
             const content = clamp(res?.text || "", 25000);
             const prompt =
               `Extract TODOs from these notes.\n\nReturn:\nTODO\n• item\n• item\n\nNOTES:\n${content}\n`;
-            await setDraft({ text: prompt, mode: "replace" });
-            await submit();
+            await send({ text: prompt, mode: "replace", timeoutMs: 4000 });
           }),
       },
       // Tier 2/3 placeholders (wired later)
@@ -203,7 +199,7 @@ export default function AgentCommandPalette() {
         run: async () => {},
       },
     ];
-  }, [available, openFile, readFile, readPdfText, setDraft, submit]);
+  }, [available, openFile, readFile, readPdfText, send]);
 
   return (
     <div style={baseStyles.container}>

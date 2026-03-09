@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   zyphra: {
     setDraft: (args) => ipcRenderer.invoke("zyphra:setDraft", args),
     submit: (args) => ipcRenderer.invoke("zyphra:submit", args),
+    send: (args) => ipcRenderer.invoke("zyphra:send", args),
   },
   dialog: {
     openFile: (args) => ipcRenderer.invoke("dialog:openFile", args),

@@ -120,14 +120,11 @@ function createWindow() {
       if (nativeSetter) nativeSetter.call(ta, next);
       else ta.value = next;
 
-      // Dispatch an InputEvent so frameworks (React) register the change.
-      const ev = (typeof InputEvent !== 'undefined')
-        ? new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: ' ' })
-        : new Event('input', { bubbles: true, cancelable: true });
-      ta.dispatchEvent(ev);
+      // Dispatch input/change so frameworks (React) register the change.
+      ta.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
       ta.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
 
-      return { ok: true, length: next.length };
+      return { ok: true, length: next.length, valueMatches: (ta.value === next) };
     })()`);
   };
 
@@ -146,34 +143,94 @@ function createWindow() {
         textareas[0];
       if (!ta) return { ok: false, error: 'No <textarea> found' };
 
-      // Prefer a send button near the textarea (same parent container), then global fallbacks.
-      const localRoot = ta.parentElement || document;
-      const candidates = [
-        ...Array.from(localRoot.querySelectorAll('button')),
-        ...Array.from(document.querySelectorAll('button')),
-      ];
-      const btn =
-        candidates.find(b => isVisible(b) && !!b.querySelector('img[alt="Send"]')) ||
-        candidates.find(b => isVisible(b) && !!b.querySelector('img[src*="send.svg"]')) ||
-        candidates.find(b => isVisible(b) && (b.type === 'submit')) ||
-        candidates.find(b => isVisible(b) && /send|submit|run|go/i.test((b.textContent || '').trim())) ||
-        candidates.find(b => isVisible(b));
+      const isDisabled = (b) => {
+        if (!b) return true;
+        if (b.disabled) return true;
+        const aria = (b.getAttribute('aria-disabled') || '').toLowerCase();
+        if (aria === 'true') return true;
+        return false;
+      };
 
-      if (btn) {
-        const fire = (type) => btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
-        fire('pointerdown');
-        fire('mousedown');
-        fire('pointerup');
-        fire('mouseup');
-        fire('click');
-        return { ok: true, via: 'button', details: { hasSendImg: !!btn.querySelector('img[alt="Send"], img[src*="send.svg"]') } };
-      }
+      // Prefer a send button near the textarea, then global fallbacks.
+      const localRoot = ta.parentElement || document;
+      const localButtons = Array.from(localRoot.querySelectorAll('button'));
+      const globalButtons = Array.from(document.querySelectorAll('button'));
+      const candidates = [...localButtons, ...globalButtons];
+
+      const pickBest = () => {
+        const visible = candidates.filter(isVisible);
+        return (
+          visible.find(b => !!b.querySelector('img[alt="Send"]')) ||
+          visible.find(b => !!b.querySelector('img[src*="send.svg"]')) ||
+          visible.find(b => b.type === 'submit') ||
+          visible.find(b => /send|submit|run|go/i.test((b.textContent || '').trim())) ||
+          visible[0]
+        );
+      };
+
+      const btn = pickBest();
+      if (!btn) return { ok: false, error: 'No <button> found' };
+      if (isDisabled(btn)) return { ok: false, error: 'Send button disabled' };
+
+      const fire = (type) => btn.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      fire('pointerdown');
+      fire('mousedown');
+      fire('pointerup');
+      fire('mouseup');
+      fire('click');
+      return { ok: true, via: 'button', details: { hasSendImg: !!btn.querySelector('img[alt="Send"], img[src*="send.svg"]') } };
 
       // Fallback: Enter key.
       ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
       ta.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', bubbles: true }));
       return { ok: true, via: 'enter' };
     })()`);
+  };
+
+  const zyphraWaitForReadyThenSubmit = async ({ expectedText, timeoutMs = 2500 }) => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const ready = await zyphraExec(`(() => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        };
+        const ta =
+          document.querySelector('textarea[placeholder*="Ask"]') ||
+          Array.from(document.querySelectorAll('textarea')).find(t => (t.getAttribute('placeholder') || '').toLowerCase().includes('ask')) ||
+          Array.from(document.querySelectorAll('textarea')).find(isVisible);
+        if (!ta) return { ok: false, reason: 'no_textarea' };
+
+        const localRoot = ta.parentElement || document;
+        const candidates = [
+          ...Array.from(localRoot.querySelectorAll('button')),
+          ...Array.from(document.querySelectorAll('button')),
+        ].filter(isVisible);
+
+        const btn =
+          candidates.find(b => !!b.querySelector('img[alt="Send"]')) ||
+          candidates.find(b => !!b.querySelector('img[src*="send.svg"]')) ||
+          candidates.find(b => b.type === 'submit') ||
+          candidates.find(b => /send|submit|run|go/i.test((b.textContent || '').trim())) ||
+          candidates[0];
+
+        const disabled = !btn ? true : (btn.disabled || (btn.getAttribute('aria-disabled') || '').toLowerCase() === 'true');
+        const matches = typeof ${JSON.stringify(String(expectedText || ""))} === 'string'
+          ? (ta.value || '') === ${JSON.stringify(String(expectedText || ""))}
+          : true;
+
+        return { ok: true, matches, disabled };
+      })()`);
+
+      if (ready?.ok && ready.matches && !ready.disabled) {
+        return await zyphraSubmit();
+      }
+
+      await new Promise((r) => setTimeout(r, 120));
+    }
+    // Last attempt: submit anyway.
+    return await zyphraSubmit();
   };
 
   ipcMain.handle("zyphra:setDraft", async (_evt, args) => {
@@ -184,6 +241,15 @@ function createWindow() {
   ipcMain.handle("zyphra:submit", async (_evt, args) => {
     emitTimeline({ kind: "step", source: args?.source || "unknown", message: "Submitting to Zyphra…" });
     return await zyphraSubmit();
+  });
+
+  ipcMain.handle("zyphra:send", async (_evt, args) => {
+    const source = args?.source || "unknown";
+    const text = String(args?.text || "");
+    emitTimeline({ kind: "step", source, message: "Setting Zyphra draft…" });
+    await zyphraSetDraft({ text, mode: args?.mode });
+    emitTimeline({ kind: "step", source, message: "Waiting for Zyphra UI to be ready…" });
+    return await zyphraWaitForReadyThenSubmit({ expectedText: text, timeoutMs: args?.timeoutMs || 2500 });
   });
 
   ipcMain.handle("dialog:openFile", async (_evt, args) => {
