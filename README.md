@@ -3,7 +3,7 @@
 ## Intro
 
 This repo is a proof of concept of a Zyphra AI desktop application that I proactively created, with 4 major features showcased. It uses React.js and Electron.js. For those who don't
-know, Zyphra is a foundational AI research company similar to ChatGPT & Anthropic.
+know, Zyphra is a foundational AI research company similar to OpenAI & Anthropic.
 
 [View the Zyphra Desktop Demo PDF Overview](./zyphra-desktop-demo.pdf)
 
